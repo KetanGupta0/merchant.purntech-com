@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\api\v1\PaykuberController;
+use App\Http\Controllers\api\v1\RSPayController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MerchantController;
 use App\Http\Controllers\WebController;
@@ -155,5 +156,6 @@ Route::prefix('/agent')->controller(AgentController::class)->group(function (){
 });
 
 Route::get('/pay-{id}',[PaykuberController::class,'paymentRedirecter']);
+Route::get('/pay2-{id}',[RSPayController::class,'paymentRedirecter']);
 
 // Route::get('/make/first-admin',[AdminController::class,'makeFirstAdmin']);

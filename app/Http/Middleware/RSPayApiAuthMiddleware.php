@@ -3,15 +3,16 @@
 namespace App\Http\Middleware;
 
 use App\Models\ApiLog;
-use Closure;
-use Illuminate\Http\Request;
-use App\Models\ApiToken;
 use App\Models\MerchantApiHitLimit;
+use App\Models\MerchantGateway;
 use App\Models\MerchantInfo;
 use App\Models\UrlWhiteListing;
+use Closure;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Symfony\Component\HttpFoundation\Response;
 
-class ApiAuthMiddleware
+class RSPayApiAuthMiddleware
 {
     private function checkOverallHits(MerchantApiHitLimit $apiHits)
     {
@@ -81,32 +82,30 @@ class ApiAuthMiddleware
         $apiHits->increment('balance_check_hits');
         return null;
     }
-    
-    public function handle(Request $request, Closure $next)
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     */
+    public function handle(Request $request, Closure $next): Response
     {
         $token = $request->header('Authorization');
-
         if (!$token) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
-
         $token = str_replace('Bearer ', '', $token);
-        $apiToken = ApiToken::where('token', $token)->first();
-
-        if (!$apiToken) {
-            return response()->json(['message' => 'Invalid api key!'], 401);
+        $apiToken = MerchantGateway::leftJoin('merchant_infos','merchant_gateways.mid','=','merchant_infos.merchant_id')
+            ->where('merchant_gateways.api_key', $token)
+            ->where('merchant_infos.acc_id',$request->acc_id)
+            ->select('merchant_gateways.*')
+            ->first();
+        if (!$apiToken || $apiToken->status != 'active') {
+            return response()->json(['message' => 'You are not allowed to perform any request! Please contact admin for more details.'], 401);
         }
-
-        if ($apiToken->isExpired()) {
-            return response()->json(['message' => 'Api key is expired!'], 401);
-        }
-
-        $merchant = MerchantInfo::where('acc_id', $request->acc_id)->first();
-
+        $merchant = MerchantInfo::where('merchant_id', $apiToken->mid)->first();
         if(!$merchant || $merchant->merchant_status != 'Active'){
             return response()->json(['message' => 'You are not allowed to perform any request! Please contact admin for more details.'], 401);
         }
-
         if ($merchant->ip_protection === 'on') {
             $ipAllowed = UrlWhiteListing::where('uwl_merchant_id', $merchant->merchant_id)
                 ->where('uwl_ip_address', $request->server('REMOTE_ADDR'))
@@ -117,35 +116,32 @@ class ApiAuthMiddleware
         }
         $merchantApiHitLimit = MerchantApiHitLimit::where('merchant_id', $merchant->merchant_id)->where('status', 'active')->first();
         if ($merchantApiHitLimit) {
-            if ($request->getRequestUri() == "/api/v1/pay-request") {
+            if ($request->getRequestUri() == "/api/pay/v1/pay-request") {
                 $checkLimit = $this->payinHitLimitCounter($merchantApiHitLimit, $request->acc_id);
                 if($checkLimit){
                     return $checkLimit;
                 }
             }
-            if ($request->getRequestUri() == "/api/v1/payout-request") {
+            if ($request->getRequestUri() == "/api/pay/v1/payout-request") {
                 $checkLimit = $this->payoutHitLimitCounter($merchantApiHitLimit, $request->acc_id);
                 if($checkLimit){
                     return $checkLimit;
                 }
             }
-            if ($request->getRequestUri() == "/api/v1/seamless/txn-status") {
+            if ($request->getRequestUri() == "/api/pay/v1/seamless/txn-status") {
                 $checkLimit = $this->trxStatusHitLimitCounter($merchantApiHitLimit, $request->acc_id);
                 if($checkLimit){
                     return $checkLimit;
                 }
             }
-            if ($request->getRequestUri() == "/api/v1/balance") {
+            if ($request->getRequestUri() == "/api/pay/v1/balance") {
                 $checkLimit = $this->balanceCheckHitLimitCounter($merchantApiHitLimit, $request->acc_id);
                 if($checkLimit){
                     return $checkLimit;
                 }
             }
         }
-
-        // Attach token data to the request for further use
         $request->attributes->set('api_token', $apiToken);
-
         return $next($request);
     }
 }

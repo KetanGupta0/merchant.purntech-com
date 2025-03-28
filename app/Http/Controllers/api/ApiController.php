@@ -65,9 +65,7 @@ class ApiController extends Controller
         }
         // Generate a new token
         $newToken = Str::random(60);
-        $expiresAt = isset($validated['expires_in_minutes'])
-            ? Carbon::now()->addMinutes($validated['expires_in_minutes'])
-            : null;
+        $expiresAt = isset($validated['expires_in_minutes']) ? Carbon::now()->addMinutes($validated['expires_in_minutes']) : null;
         $existingToken->update([
             'token' => $newToken,
             'expires_at' => $expiresAt,

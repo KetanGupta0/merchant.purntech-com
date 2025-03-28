@@ -157,7 +157,7 @@ class PaykuberController extends Controller
             // Updated on 20-03-2025 by Ketan Gupta End
             ApiLoggerService::logEvent(
                 '/v1/payout-request',
-                'Paykuber Payout Request',
+                'Payout Request',
                 'Payout request generated for manual.',
                 $logPayload
             );
@@ -420,9 +420,10 @@ class PaykuberController extends Controller
     {
         ApiLoggerService::logEvent(
             '/v1/pay-request',
-            'Paykuber Payin Hit',
+            'Payin Hit',
             'User is initiating a payin request.',
             $request->all(),
+            null,
             'info'
         );
         $admin = Admin::find(1);
@@ -540,7 +541,6 @@ class PaykuberController extends Controller
                 $gst = ($charges * (float)$merchantGateway->gst_percentage) / 100.00;
             }
             $charges = $charges + $gst;
-            // return response()->json([$charges , $gst,($charges + $gst)],200);
             $merchantWallet = MerchantWallet::where('merchant_id', $merchant->merchant_id)->first();
             if ($merchantWallet) {
                 $penality = $merchant->payin_hit_charge ?? 0.00;
@@ -850,7 +850,7 @@ class PaykuberController extends Controller
             $responseData = $response->json();
             ApiLoggerService::logEvent(
                 '/v1/seamless/txn-status',
-                'Paykuber Transaction Status',
+                'Transaction Status',
                 'Transaction status received for gateway Paykuber.',
                 $logPayload,
                 $response->body(),
@@ -917,7 +917,7 @@ class PaykuberController extends Controller
                         ]);
                         ApiLoggerService::logEvent(
                             '/v1/seamless/txn-status',
-                            'Paykuber Transaction Status',
+                            'Transaction Status',
                             "Transaction status updated for order id {$request->order_id}.",
                             $logPayload,
                             $responseData,
@@ -943,7 +943,7 @@ class PaykuberController extends Controller
                         if ($oldRolingBalance < $adjustableAmount) {
                             ApiLoggerService::logEvent(
                                 '/v1/seamless/txn-status',
-                                'Paykuber Transaction Status',
+                                'Transaction Status',
                                 "Old rolling balance is less than adjustable amount for transaction id {$request->order_id}. Old rolling balance: {$oldRolingBalance}, Adjustable amount: {$adjustableAmount} | Current balance: {$oldBalance} | Merchant ID: {$merchant->merchant_id}",
                                 $logPayload,
                                 $responseData,
@@ -965,7 +965,7 @@ class PaykuberController extends Controller
                             ]);
                             ApiLoggerService::logEvent(
                                 '/v1/seamless/txn-status',
-                                'Paykuber Transaction Status',
+                                'Transaction Status',
                                 "Wallet Transaction status updated for transaction id {$request->order_id}.",
                                 $logPayload,
                                 $responseData,
@@ -1504,7 +1504,7 @@ class PaykuberController extends Controller
             ]);
             ApiLoggerService::logEvent(
                 '/v1/payout-request',
-                'Paykuber Payout Request',
+                'Payout Request',
                 'Payout request generated for gateway Paykuber.',
                 $logPayload
             );
@@ -1644,7 +1644,7 @@ class PaykuberController extends Controller
                     Log::error("Invalid callback URL for merchant", ["url" => $merchant->callback_url]);
                 }
             }
-            return response()->json($responseData, 200)->header('X-Signature', $signature)->header('Content-Type', 'application/json');;
+            return response()->json($responseData, 200)->header('X-Signature', $signature)->header('Content-Type', 'application/json');
         } catch (Exception $e) {
             Log::error('Paykuber payoutRequest exception: ' . $e);
             ApiLoggerService::logEvent(
